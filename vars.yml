@@ -1,0 +1,13 @@
+- name: variables in playbook
+  hosts: all
+  vars:
+    URL: play.google.com
+  tasks: 
+    - name: Print the URL of the play
+      debug:
+        msg: "URL = {{URL}}"
+    - name: Print the url of task variable
+      vars:
+        URL: task.google.com
+      debug:
+        msg: "URL = {{URL}}"
