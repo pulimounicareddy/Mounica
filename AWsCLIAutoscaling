@@ -8,6 +8,8 @@ NEW_LC="testlc"
 
 # Create AMI
 IMAGE=`aws ec2 create-image --region us-west-2 --instance-id $INSTANCE --name $AMI_NAME  --no-reboot --output text`
+#Creating tags to ami
+aws ec2 create-tags --resources $IMAGE --tags Key=Name,Value=hotfixtags --region us-west-2
 #copy image to DR region
 copyami(){
 aws ec2 copy-image --source-image-id "$IMAGE" --source-region us-west-2 --region us-east-1 --name "$AMI_NAME"
