@@ -1,9 +1,9 @@
 - name: Demo on vars_files
   hosts: all
-  include_vars:
+  tasks:
+    include_vars:
     file: test-vars.yml
     name: test-vars
-  tasks:
     - name: Print url
       debug:
         msg: "url == {{URL}}"
