@@ -1,0 +1,9 @@
+- name: demo on vars prompt
+  hosts: all
+  vars_prompt:
+    - prompt: Enter URL
+      name: URL
+  tasks:
+    - name: print URL
+      debug:
+        msg: "URL == {{URL}}"
