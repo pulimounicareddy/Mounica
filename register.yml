@@ -1,0 +1,11 @@
+- name: Demo on conditions using when
+  hosts: all
+  gather_facts: yes
+  tasks:
+    - name: Run uptime
+      shell: df -H
+      register: out
+      when: ansible_distribution == "CentOS"
+    - name: print output
+      debug:
+        msg: "{{out.stdout}}"
