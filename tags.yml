@@ -1,0 +1,16 @@
+- name: Demo in tags
+  hosts: all
+  tasks:
+    - name: Run Httpd related tasks
+      debug: 
+       msg: "Running Httpd"
+      tags:
+        - Httpd
+    - name: Run tomcat related tasks
+      debug:
+       msg: "Running Tomcat"
+      tags:
+        - Tomcat
+        
+        
+        #######if you want run playbook with tags specific use: ansible-playbook tags.yml --tags "Httpd"  or else if you want to skip you can use --skip-tags####
