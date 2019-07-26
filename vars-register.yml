@@ -1,0 +1,16 @@
+- name: Register variables
+  hosts: all
+  tasks:
+    - name: run uptime
+      shell: uptime
+      register: out
+- name: print out
+  debug:
+   msg: "{{out.stdout}}"
+- name: Declare variables
+  set_facts:
+    URL: facts.google.com
+    STATUS: "{{out.rc}}"
+- name: print facts
+  debug:
+    msg: "URL = {{URL}} STATUS = {{STATUS}}"
