@@ -1,0 +1,11 @@
+- name: Run a command as the root user
+  hosts: all
+  become: true
+  become_user: root
+  tasks:
+    - name: Install httpd
+      package:
+        name=httpd
+        state=present
+
+    
