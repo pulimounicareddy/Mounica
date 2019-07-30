@@ -1,0 +1,7 @@
+- name: Demo on copying a file
+  hosts: all
+  tasks:
+    - name: Copy File
+      copy:
+        src: /etc/ansible/abc.txt
+        dest: /tmp/abc.txt
