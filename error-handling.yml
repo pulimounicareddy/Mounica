@@ -1,0 +1,14 @@
+- name: Error handling
+  hosts: all
+  become: yes
+  tasks:
+    - name: check java installed or not
+      shell: type java
+      register: out
+      igonre_errors: yes
+      
+    - name: install java
+      package:
+        name: java
+        state: installed
+      when: out.rc !=0
