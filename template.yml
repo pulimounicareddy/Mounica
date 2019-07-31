@@ -1,0 +1,10 @@
+- name: copy Template
+  hosts: all
+  tasks:
+    - copy:
+        src: /etc/ansible/sample.txt
+        dest: /tmp/copy.txt
+    - template:
+        src: /tmp/sample.txt
+        dest: /tmp/sample.txt
+        
