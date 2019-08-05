@@ -1,0 +1,79 @@
+#!/bin/bash
+#Define parameters
+AMI_NAME=allfixedami
+read -p 'Enter your instance id: ' INSTANCE
+ASG_NAME="awscliautoscaling"
+OLD_LC="tagsfixedlc"
+NEW_LC="clilc"
+
+# Create AMI
+IMAGE=`aws ec2 create-image --region us-west-2 --instance-id $INSTANCE --name $AMI_NAME --no-reboot --output text`
+#Creating tags to ami
+aws ec2 create-tags --resources $IMAGE --tags Key=Name,Value=oregonfixtags --region us-west-2
+#copy image to DR region
+copyami(){
+aws ec2 copy-image --source-image-id "$IMAGE" --source-region us-west-2 --region us-east-1 --name "$AMI_NAME"
+if [ $? -eq 0  ]
+then
+        echo Image copied successfully to DR Region
+else
+        echo Failed to Copy image to DR region
+fi
+}
+sleep 10m
+#Checking whether image is avaliable or not
+aws ec2 describe-images --image-ids "$IMAGE" --filters 'Name=state,Values=available' --output text --region us-east-1
+if [ $? -eq 0  ]
+then
+        echo Image is now avaliable
+else
+        echo Image is in pending state
+        exit 1
+fi
+#creating the tags in drregion
+DRTags="`aws ec2 describe-images --owners 290686968670 --filters "Name=virtualization-type,Values=hvm" "Name=root-device-type,Values=ebs" --query "sort_by(Images, &CreationDate)[-1].ImageId" --output text --region us-east-1`"
+aws ec2 create-tags --resources $DRTags --tags Key=Name,Value=drtags --region us-east-1
+if [ $? -eq 0  ]
+then
+        echo Tags created successfully to DR Region
+else
+        echo Failed to Copy create tags to DR region
+fi
+# Create Launch Configuration
+launchconfig(){
+aws autoscaling create-launch-configuration --launch-configuration-name "$NEW_LC" --image-id "$IMAGE" --region us-west-2  --instance-type "t2.micro" --key-name "Devops179" --security-groups "sg-00eaea4d4568fb0e4" --iam-instance-profile arn:aws:iam::290686968670:instance-profile/iamtestrole
+if [ $? -eq 0  ]
+then
+        echo Launch configuration created successfully
+else
+        echo Launch configuration failed
+                exit 1
+fi
+}
+# Update Auto Scaling Group to use new Launch Configuration
+autoscalingupdate(){
+aws autoscaling update-auto-scaling-group --auto-scaling-group-name $ASG_NAME --launch-configuration-name $NEW_LC --region us-west-2
+if [ $? -eq 0  ]
+then
+        echo Auto scaling updated successfully
+else
+        echo Failed to update auto scaling
+fi
+}
+# Delete old launch-configuration
+deleteoldlc(){
+aws autoscaling delete-launch-configuration --launch-configuration-name $OLD_LC --region us-west-2
+if [ $? -eq 0  ]
+then
+        echo Deleted the old configuration successfully....!!
+else
+        echo Failed to delete old configuration successfully
+fi
+}
+activity(){
+copyami
+launchconfig
+autoscalingupdate
+deleteoldlc
+}
+activity;
