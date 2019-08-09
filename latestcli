@@ -1,0 +1,96 @@
+#!/bin/bash
+#Define parameters
+AMI_NAME=allfixedami
+read -p 'Enter your instance id: ' INSTANCE
+Date=$(date +"%Y_%m_%d_%y")
+NEW_LC="$LaunchConfigurationNameold-$Date"
+
+# AutoscalingGroupname
+AutoscalingGroupname=`aws ec2 describe-instances --filters Name=instance-id,Values=$INSTANCE --query "Reservations[].Instances[].[Tags[?Key== 'aws:autoscaling:groupName'].Value]" --output text --region us-west-2`
+#LaunchConfigurationName
+LaunchConfigurationNameold=`aws autoscaling describe-auto-scaling-groups --auto-scaling-group-name $AutoscalingGroupname --query 'AutoScalingGroups[0].LaunchConfigurationName' --output text --region us-west-2`
+#InstanceType
+InstanceType=`aws autoscaling describe-launch-configurations --launch-configuration-names $LaunchConfigurationNameold --query 'LaunchConfigurations[0].InstanceType' --output text --region us-west-2`
+#SecurityGroup
+SecurityGroup=`aws autoscaling describe-launch-configurations --launch-configuration-names $LaunchConfigurationNameold --query 'LaunchConfigurations[0].SecurityGroups' --output text --region us-west-2`
+#KeyName
+KeyName=`aws autoscaling describe-launch-configurations --launch-configuration-names $LaunchConfigurationNameold --query 'LaunchConfigurations[0].KeyName' --output text --region us-west-2`
+#BlockDevice
+BlockDevice=`aws autoscaling describe-launch-configurations --launch-configuration-names $LaunchConfigurationNameold --query 'LaunchConfigurations[0].BlockDeviceMappings'  --output text --region us-west-2`
+#Iamrole
+Iamrole=`aws autoscaling describe-launch-configurations --launch-configuration-names $LaunchConfigurationNameold --query 'LaunchConfigurations[0].IamInstanceProfile' --output text --region us-west-2`
+IAMARN=`aws iam get-instance-profile --instance-profile-name $Iamrole --output text --region us-west-2 | awk '{print $2}' | head -1`
+# Create AMI
+IMAGE=`aws ec2 create-image --region us-west-2 --instance-id $INSTANCE --name $AMI_NAME --no-reboot --output text`
+#Creating tags to ami
+aws ec2 create-tags --resources $IMAGE --tags Key=Name,Value=oregonfixtags --region us-west-2
+#copy image to DR region
+copyami=`aws ec2 copy-image --source-image-id "$IMAGE" --source-region us-west-2 --region us-east-1 --name "$AMI_NAME" --output text`
+if [ $? -eq 0  ]
+then
+        echo Image copied successfully to DR Region
+else
+        echo Failed to Copy image to DR region
+fi
+#Checking whether image is avaliable or not
+checkamiisavaliableornot(){
+aws ec2 describe-images --image-ids "$copyami" --filters 'Name=state,Values=available' --output text --region us-east-1
+if [ $? -eq 0  ]
+then
+        echo Image is now avaliable
+else
+        echo Image is in pending state
+        exit 1
+fi
+}
+#creating the tags in drregion
+creatingDrtags(){
+DRTags="`aws ec2 describe-images --owners 290686968670 --filters "Name=virtualization-type,Values=hvm" "Name=root-device-type,Values=ebs" --query "sort_by(Images, &CreationDate)[-1].ImageId" --output text --region us-east-1`"
+aws ec2 create-tags --resources $DRTags --tags Key=Name,Value=drtags --region us-east-1
+if [ $? -eq 0  ]
+then
+        echo Tags created successfully to DR Region
+else
+        echo Failed to Copy create tags to DR region
+fi
+}
+# Create Launch Configuration
+launchconfig(){
+aws autoscaling create-launch-configuration --launch-configuration-name "$NEW_LC" --image-id "$IMAGE" --region us-west-2  --instance-type "$InstanceType" --key-name "$KeyName" --security-groups "$SecurityGroup" --iam-instance-profile "$IAMARN"
+if [ $? -eq 0  ]
+then
+        echo Launch configuration created successfully
+else
+        echo Launch configuration failed
+                exit 1
+fi
+}
+# Update Auto Scaling Group to use new Launch Configuration
+autoscalingupdate(){
+aws autoscaling update-auto-scaling-group --auto-scaling-group-name $ASG_NAME --launch-configuration-name $NEW_LC --region us-west-2
+if [ $? -eq 0  ]
+then
+        echo Auto scaling updated successfully
+else
+        echo Failed to update auto scaling
+fi
+}
+# Delete old launch-configuration
+deleteoldlc(){
+aws autoscaling delete-launch-configuration --launch-configuration-name $LaunchConfigurationNameold --region us-west-2
+if [ $? -eq 0  ]
+then
+        echo Deleted the old configuration successfully....!!
+else
+        echo Failed to delete old configuration successfully
+fi
+}
+activity(){
+sleep 20m
+checkamiisavaliableornot
+creatingDrtags
+launchconfig
+autoscalingupdate
+deleteoldlc
+}
+activity;
