@@ -1,0 +1,6 @@
+- name: pull centos image
+  hosts: all
+  tasks:
+    - name: pull
+      docker_image:
+        name: centos
