@@ -1,0 +1,7 @@
+- name: Create web image
+  hosts: all
+  tasks:
+    - name: Build an image
+      docker_image:
+        path: /root/Mounica
+        name: webimage
