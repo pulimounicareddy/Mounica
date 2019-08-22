@@ -42,5 +42,5 @@
 
 ## db-[99:101]-node.example.com
 [testserver]
-172.31.16.253 ansible_ssh_private_key_file=/root/sshcon/devops179.pem
+172.31.16.253
 
