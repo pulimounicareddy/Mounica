@@ -1,5 +1,5 @@
 - name: Demo on debug module
-  hosts: all
+  hosts: 172.31.16.253
   tasks:
     - name: print sample
       debug:
